@@ -1,11 +1,513 @@
 <html>
 <head>
-    <title>RPG</title>
-    <script src=https://code.jquery.com/jquery-3.6.0.min.js></script>
-    <link href="/css/my.css" rel="stylesheet">
+  <title>RPG</title>
+  <meta charset="UTF-8">
+  <script src=https://code.jquery.com/jquery-3.6.0.min.js></script>
+  <link type="text/css" href="/css/my.css" rel="stylesheet">
 </head>
+
 <body>
+
 <h1>RPG admin panel</h1>
+<h2>Accounts list: </h2>
+
+
+<datalist id="productName">
+  <option value="Pen">Pen</option>
+  <option value="Pencil">Pencil</option>
+  <option value="Paper">Paper</option>
+</datalist>
+
+<style>
+  .tb th {
+    border: 1px solid gray;
+    border-collapse: collapse;
+    padding: 5px;
+  }
+  .tb td{
+    border: 1px solid gray;
+    border-collapse: collapse;
+    padding: 5px;
+  }
+  .tb {
+    border: 1px solid gray;
+    border-collapse: collapse;
+    padding: 5px;
+  }
+  .seldiv {
+    padding: 5px;
+  }
+</style>
+
+
+<div class='seldiv'>
+  <label>Count per page: </label>
+  <select id='selectvalue' onchange='changePageSize()'>
+  <option>3</option>
+  <option>5</option>
+  <option>10</option>
+  <option>15</option>
+  <option>20</option>
+</select>
+</div>
+
+<table class='tb' id='generalTable'>
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>Name</th>
+      <th>Title</th>
+      <th>Race</th>
+      <th>Profession</th>
+      <th>Level</th>
+      <th>Birthday</th>
+      <th>Banned</th>
+      <th>Edit</th>
+      <th>Delete</th>
+    </tr>
+  </thead>
+  <tbody id='tdBodyId'>
+  </tbody>
+</table>
+
+
+<script>
+  let pageSize = 3, pageNumber = 1, countPages;
+
+  function createNewPlayer() {
+    const PlayerInfo = {
+      name: document.getElementById("inputCreateName").value,
+      title: document.getElementById("inputCreateTitle").value,
+      race: document.getElementById("inputCreateRace").value,
+      profession: document.getElementById("inputCreateProfession").value,
+      birthday: new Date(document.getElementById("inputCreateBirthday").value).getTime(),
+      banned: document.getElementById("inputCreateBanned").value,
+      level: document.getElementById("inputCreateLevel").value
+    };
+    $.ajax({
+      contentType: "application/json; charset=utf-8",
+      url: '/rest/players/',
+      type: 'POST',
+      dataType: 'json',
+      data: JSON.stringify(PlayerInfo),
+      beforeSend: function(){
+      },
+      success: function(data){
+        drawTable(pageSize, pageNumber);
+        buttonPages();
+        blockCreatePlayerEmpty();
+        blockCreatePlayer();
+      },
+      complete: function(){
+      },
+      error: function(data){
+      }
+    });
+
+
+  }
+  function changePageSize() {
+    let select = document.getElementById("selectvalue");
+    pageSize = select.value;
+    pageNumber = 1;
+
+    drawTable(pageSize, pageNumber);
+    buttonPages();
+    blockCreatePlayerEmpty();
+    blockCreatePlayer();
+  }
+  function clickPageButton(ID) {
+    pageNumber = ID;
+    drawTable(pageSize, pageNumber);
+    buttonPages();
+    blockCreatePlayerEmpty();
+    blockCreatePlayer();
+  }
+  function deleteFunction(id) {
+    $.ajax({
+      type: "DELETE",
+      url: "/rest/players/"+ id,
+      success: function(){
+        countPages = 0;
+        if(countPlayrs() % pageSize === 0) {
+          countPages = countPlayrs() / pageSize;
+        } else {
+          countPages = Math.floor(countPlayrs() / pageSize) + 1;
+        }
+        if(pageNumber > countPages) pageNumber = countPages;
+        console.log(pageNumber);
+
+        drawTable(pageSize, pageNumber);
+        buttonPages();
+        blockCreatePlayerEmpty();
+        blockCreatePlayer();
+      }
+    });
+  }
+  function saveFunction(newInfo) {
+    newInfo.name = document.getElementById("newName").value;
+    newInfo.title = document.getElementById("newTitle").value;
+    newInfo.race = document.getElementById("raceSelect").value;
+    newInfo.profession = document.getElementById("professionSelect").value;
+    newInfo.banned = document.getElementById("bannedSelect").value;
+
+    $.ajax({
+      contentType: "application/json; charset=utf-8",
+      url: '/rest/players/' + newInfo.id,
+      type: 'POST',
+      dataType: 'json',
+      data: JSON.stringify({
+        name: newInfo.name,
+        title: newInfo.title,
+        race: newInfo.race,
+        profession: newInfo.profession,
+        banned: newInfo.banned
+      }),
+      beforeSend: function(){
+      },
+      success: function(data){
+        drawTable(pageSize, pageNumber);
+        buttonPages();
+        blockCreatePlayerEmpty();
+        blockCreatePlayer();
+      },
+      complete: function(){
+      },
+      error: function(data){
+      }
+    });
+  }
+
+  function editFunction(id) {
+    drawTableSave(pageSize, pageNumber, id);
+  }
+  function drawTable(pageSize, pageNumber) {
+    $("#tdBodyId").empty();
+
+    let url = "/rest/players?pageSize=" + pageSize + "&pageNumber=" + (pageNumber - 1);
+    $(document).ready(function () {
+      $.getJSON(url,
+              function (json) {
+                let tr;
+                console.log(json.length);
+                for (let i = 0; i < json.length; i++) {
+                  let birthday = new Date(json[i].birthday);
+                  tr = $('<tr/>');
+                  tr.append("<td>" + json[i].id + "</td>");
+                  tr.append("<td>" + json[i].name + "</td>");
+                  tr.append("<td>" + json[i].title + "</td>");
+                  tr.append("<td>" + json[i].race + "</td>");
+                  tr.append("<td>" + json[i].profession + "</td>");
+                  tr.append("<td>" + json[i].level + "</td>");
+                  tr.append("<td>" + birthday.toLocaleDateString() + "</td>");
+                  tr.append("<td>" + json[i].banned + "</td>");
+                  tr.append("<td> <img src=../img/edit.png onclick= \"editFunction(" + json[i].id + ")\"> </td>");
+                  tr.append("<td> <img src=../img/delete.png onclick= \"deleteFunction(" + json[i].id + ")\"> </td>");
+                  $('#generalTable').append(tr);
+                }
+              });
+    });
+  }
+
+  function drawTableSave(pageSize, pageNumber, ID) {
+    $("#tdBodyId").empty();
+
+    let url = "/rest/players?pageSize=" + pageSize + "&pageNumber=" + (pageNumber - 1);
+    $(document).ready(function () {
+      $.getJSON(url,
+              function (json) {
+                let tr;
+                for (let i = 0; i < json.length; i++) {
+                  if(json[i].id != ID) {
+                    let birthday = new Date(json[i].birthday);
+                    tr = $('<tr/>');
+                    tr.append("<td>" + json[i].id + "</td>");
+                    tr.append("<td>" + json[i].name + "</td>");
+                    tr.append("<td>" + json[i].title + "</td>");
+                    tr.append("<td>" + json[i].race + "</td>");
+                    tr.append("<td>" + json[i].profession + "</td>");
+                    tr.append("<td>" + json[i].level + "</td>");
+                    tr.append("<td>" + birthday.toLocaleDateString() + "</td>");
+                    tr.append("<td>" + json[i].banned + "</td>");
+                    tr.append("<td> <img src=../img/edit.png onclick= \"editFunction(" + json[i].id + ")\"> </td>");
+                    tr.append("<td> <img src=../img/delete.png onclick= \"deleteFunction(" + json[i].id + ")\"> </td>");
+                    $('#generalTable').append(tr);
+                  } else {
+
+                    let birthday = new Date(json[i].birthday);
+
+                    let newInfo = {
+                      id: json[i].id,
+                      name: json[i].name,
+                      title: json[i].title,
+                      race: json[i].race,
+                      profession: json[i].profession,
+                      level: json[i].level,
+                      birthday: birthday.toLocaleDateString(),
+                      banned: json[i].banned
+                    };
+
+                    let img = document.createElement('img');
+                    img.src = "../img/save.png";
+                    img.onclick = function () {saveFunction(newInfo)};
+                    let tdSave = document.createElement('td');
+                    tdSave.appendChild(img);
+
+                    let profession = ["WARRIOR", "ROGUE", "SORCERER", "CLERIC", "PALADIN", "NAZGUL", "WARLOCK", "DRUID"];
+                    let selectProfession= document.createElement('select');
+                    selectProfession.id = 'professionSelect';
+                    for(let i = 0; i < profession.length; i++) {
+                      let optionProfession = document.createElement('option');
+                      optionProfession.value = profession[i];
+                      optionProfession.text = profession[i];
+                      if(newInfo.profession === profession[i]) {
+                        optionProfession.selected = true;
+                      }
+                      selectProfession.appendChild(optionProfession);
+                    }
+                    let tdProfession = document.createElement('td');
+                    tdProfession.appendChild(selectProfession);
+
+                    let race = ["HUMAN", "DWARF", "ELF", "GIANT", "ORC", "TROLL", "HOBBIT"];
+                    let selectRace = document.createElement('select');
+                    selectRace.id = 'raceSelect';
+                    for(let i = 0; i < race.length; i++) {
+                      let optionRace = document.createElement('option');
+                      optionRace.value = race[i];
+                      optionRace.text = race[i];
+                      if(newInfo.race === race[i]) {
+                        optionRace.selected = true;
+                      }
+                      selectRace.appendChild(optionRace);
+                    }
+                    let tdRace = document.createElement('td');
+                    tdRace.appendChild(selectRace);
+
+                    let banned = ["false", "true"];
+                    let selectBanned = document.createElement('select');
+                    selectBanned.id = 'bannedSelect';
+                    for(let i = 0; i < banned.length; i++) {
+                      let optionBanned = document.createElement('option');
+                      optionBanned.value = banned[i];
+                      optionBanned.text = banned[i];
+                      if(newInfo.banned === banned[i]) {
+                        optionBanned.selected = true;
+                      }
+                      selectBanned.appendChild(optionBanned);
+                    }
+                    let tdBanned = document.createElement('td');
+                    tdBanned.appendChild(selectBanned);
+
+                    tr = $('<tr/>');
+                    tr.append("<td>" + json[i].id + "</div></td>");
+
+                    tr.append("<td> <input id='newName' type='text' value=" + json[i].name + "> </td>");
+                    tr.append("<td> <input id='newTitle' type='text' value=" + json[i].title + "> </td>");
+                    tr.append(tdRace);
+                    tr.append(tdProfession);
+                    tr.append("<td>" + json[i].level + "</td>");
+                    tr.append("<td>" + birthday.toLocaleDateString() + "</td>");
+                    tr.append(tdBanned);
+                    tr.append(tdSave);
+                    tr.append("<td> </td>");
+                    $('#generalTable').append(tr);
+                  }
+                }
+              });
+    });
+  }
+
+  function countPlayrs()
+  {
+    let result = null;
+    let scriptUrl = "/rest/players/count";
+    $.ajax({
+      url: scriptUrl,
+      type: 'get',
+      dataType: 'html',
+      async: false,
+      success: function(data) {
+        result = data;
+      }
+    });
+    return result;
+  }
+
+  function buttonPages() {
+    if(countPlayrs() % pageSize === 0) {
+      countPages = countPlayrs() / pageSize;
+    } else {
+      countPages = Math.floor(countPlayrs() / pageSize) + 1;
+    }
+    const elements = document.getElementsByClassName("buttonPages");
+    while(elements.length > 0){
+      elements[0].parentNode.removeChild(elements[0]);
+    }
+    let toAdd = document.createDocumentFragment();
+    toAdd.id = 'fragment';
+    let div = document.createElement('div');
+    div.id = "pages";
+    div.className = "buttonPages";
+    div.textContent = "Pages: ";
+    for(let i = 1; i <= countPages; i++){
+      let button = document.createElement('button');
+      button.id = i;
+      button.type = "submit";
+      button.className = "pageBtn";
+      button.onclick = function() {clickPageButton(i)};
+      button.textContent = i;
+
+      button.style.margin = "5px";
+      button.style.width = "30px";
+      button.style.height = "30px";
+      div.appendChild(button);
+    }
+    toAdd.append(div);
+    document.body.append(toAdd);
+    document.getElementById(pageNumber).style.color = "blue";
+  }
+
+  function blockCreatePlayer() {
+    let line = document.createElement('hr');
+    line.id = "Line";
+    line.style.width = "100%";
+    line.style.color = "gray";
+    line.style.border = "solid 0.5px gray";
+    document.body.append(line);
+
+    let divName = document.createElement('div');
+    divName.id = "createNameForm";
+    divName.className = "createNameForm";
+    divName.textContent = "Name: ";
+    let inputName = document.createElement('input');
+    inputName.id = "inputCreateName";
+    inputName.type = "text";
+    inputName.minLength = 1;
+    inputName.maxLength = 12;
+    divName.appendChild(inputName);
+    divName.style.padding = "5px";
+    document.body.append(divName);
+
+    let divTitle = document.createElement('div');
+    divTitle.id = "createTitleForm";
+    divTitle.className = "createTitleForm";
+    divTitle.textContent = "Title: ";
+    let inputTitle = document.createElement('input');
+    inputTitle.id = "inputCreateTitle";
+    inputTitle.type = "text";
+    inputTitle.minLength = 1;
+    inputTitle.maxLength = 30;
+    divTitle.appendChild(inputTitle);
+    divTitle.style.padding = "5px";
+    document.body.append(divTitle);
+
+    let divRace = document.createElement('div');
+    divRace.id = "createRaceForm";
+    divRace.className = "createRaceForm";
+    divRace.textContent = "Race: ";
+    let race = ["HUMAN", "DWARF", "ELF", "GIANT", "ORC", "TROLL", "HOBBIT"];
+    let inputRace = document.createElement('select');
+    inputRace.id = "inputCreateRace";
+    for(let i = 0; i < race.length; i++) {
+      let optionRace = document.createElement("option");
+      optionRace.value = race[i];
+      optionRace.text = race[i];
+      inputRace.appendChild(optionRace);
+    }
+    divRace.appendChild(inputRace);
+    divRace.style.padding = "5px";
+    document.body.append(divRace);
+
+    let divProfession = document.createElement('div');
+    divProfession.id = "createProfessionForm";
+    divProfession.className = "createProfessionForm";
+    divProfession.textContent = "Profession: ";
+    let profession = ["WARRIOR", "ROGUE", "SORCERER", "CLERIC", "PALADIN", "NAZGUL", "WARLOCK", "DRUID"];
+    let inputProfession = document.createElement('select');
+    inputProfession.id = "inputCreateProfession";
+    for(let i = 0; i < profession.length; i++) {
+      let optionProfession = document.createElement("option");
+      optionProfession.value = profession[i];
+      optionProfession.text = profession[i];
+      inputProfession.appendChild(optionProfession);
+    }
+    divProfession.appendChild(inputProfession);
+    divProfession.style.padding = "5px";
+    document.body.append(divProfession);
+
+    let divLevel = document.createElement('div');
+    divLevel.id = "createLevelForm";
+    divLevel.className = "createLevelForm";
+    divLevel.textContent = "Level: ";
+    let inputLevel = document.createElement('input');
+    inputLevel.id = "inputCreateLevel";
+    inputLevel.type = "number";
+    inputLevel.min = "0";
+    inputLevel.max = "100";
+    divLevel.appendChild(inputLevel);
+    divLevel.style.padding = "5px";
+    document.body.append(divLevel);
+
+    let divBirthday = document.createElement('div');
+    divBirthday.id = "createBirthdayForm";
+    divBirthday.className = "createBirthdayForm";
+    divBirthday.textContent = "Birthday: ";
+    let inputBirthday = document.createElement('input');
+    inputBirthday.id = "inputCreateBirthday";
+    inputBirthday.type = "date";
+    inputBirthday.min = "1900-01-01";
+    divBirthday.appendChild(inputBirthday);
+    divBirthday.style.padding = "5px";
+    document.body.append(divBirthday);
+
+    let divBanned = document.createElement('div');
+    divBanned.id = "createBannedForm";
+    divBanned.className = "createBannedForm";
+    divBanned.textContent = "Banned: ";
+    let banned = ["false", "true"];
+    let inputBanned = document.createElement('select');
+    inputBanned.id = "inputCreateBanned";
+    for(let i = 0; i < banned.length; i++) {
+      let optionBanned = document.createElement("option");
+      optionBanned.value = banned[i];
+      optionBanned.text = banned[i];
+      inputBanned.appendChild(optionBanned);
+    }
+    divBanned.appendChild(inputBanned);
+    divBanned.style.padding = "5px";
+    document.body.append(divBanned);
+
+    let divSave = document.createElement('div');
+    divSave.id = "createSaveForm";
+    divSave.className = "createSaveForm";
+    let buttonSave = document.createElement('button');
+
+    buttonSave.id = "save";
+    buttonSave.type = "submit";
+    buttonSave.onclick = function() {createNewPlayer()};
+    buttonSave.textContent = "Save";
+    divSave.appendChild(buttonSave);
+    document.body.append(divSave);
+
+  }
+  function blockCreatePlayerEmpty() {
+    $("#Line").remove();
+    $("#createNameForm").remove();
+    $("#createTitleForm").remove();
+    $("#createRaceForm").remove();
+    $("#createProfessionForm").remove();
+    $("#createLevelForm").remove();
+    $("#createBirthdayForm").remove();
+    $("#createBannedForm").remove();
+    $("#save").remove();
+  }
+
+  drawTable(pageSize, pageNumber);
+  buttonPages();
+  blockCreatePlayer();
+
+</script>
 
 </body>
+
 </html>
