@@ -1,0 +1,12 @@
+.tb th {
+    background-color: lightcyan;
+}
+.tb td {
+    background: seashell;
+}
+.pageBtn {
+    background: aliceblue;
+    display: table-cell;
+    vertical-align: middle;
+    horiz-align: center;
+}
